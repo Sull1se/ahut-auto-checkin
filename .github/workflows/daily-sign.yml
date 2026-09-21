@@ -1,9 +1,8 @@
-name: AHUT 晚寝自动签到 (每日定时 & 容灾双轨)
+name: Daily Check-In
 
 on:
   schedule:
-    # 国际标准时间 13:31，换算为北京时间 (UTC+8) 即每晚 21:31:00 精确触发
-    # 比本地桌面 21:35 兜底提前 4 分钟执行首发签到
+    # 国际标准时间 13:31，换算为北京时间 (UTC+8) 即每晚 21:31:00 自动触发
     - cron: '31 13 * * *'
   workflow_dispatch: # 支持在 GitHub 网页控制台手动一键点击运行测试
 
@@ -14,10 +13,10 @@ jobs:
 
     steps:
       - name: 检出仓库代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 配置 Python 环境
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
