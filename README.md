@@ -1,6 +1,5 @@
-# AHUT 晚寝自动签到助手 (AHUT Auto Check-In)
+# AHUT 安徽工业大学晚寝自动签到助手 (AHUT Auto Check-In)
 
-[![Daily Check-In](https://github.com/Sull1se/ahut-auto-checkin/actions/workflows/daily-sign.yml/badge.svg)](https://github.com/Sull1se/ahut-auto-checkin/actions/workflows/daily-sign.yml)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform: Edge / Chrome / Linux](https://img.shields.io/badge/Platform-Edge%20%7C%20Chrome%20%7C%20Actions-brightgreen.svg)]()
@@ -16,14 +15,12 @@
 ## 🌟 核心特性
 
 - 🌟 **云端全自动首选（GitHub Actions）**：
-  - **永久零成本全托管**：利用 GitHub Actions 公开仓库无限制的免费托管 Runner，无需购买云服务器或充值阿里云函数计算（FC）；
+  - **永久零成本全托管**：利用 GitHub Actions 公开仓库无限制（或私有仓库每月 2000 h）的免费托管 Runner，无需云服务器；
   - **定时自动调度**：每晚 21:31 准时调度无头签到，支持多学号并发，直接提交协议并推送通知；
-  - **严格安全脱敏**：个人学号、密码、推送密钥由 GitHub Encrypted Secrets 保护，公开控制台日志全面脱敏，零隐私信息暴露；
 - 🖥️ **本地图形化备选（桌面浏览器 + 油猴脚本）**：
   - **真实环境会话适配**：自动提取 PC 端登录凭证并注入移动端 H5 存储规范，支持开箱即用自动填充账密；
   - **防竞态与状态锁死**：悬浮 HUD 看板实时展示打卡状态；若检测到今日已完成打卡，看板显示 `🎉 今日已签到` 并安全退出，杜绝重复提交；
   - **唤醒调度支持**：提供配套 Windows 任务计划程序安装工具，支持从睡眠状态自动唤醒计算机执行；
-- 📍 **GPS 拟真抖动收敛**：优化上游粗粒度偏移算法，将随机抖动严格收敛在基准定位 $\pm 0.0002^\circ$（约 15~20 米范围内），既打破静态坐标特征规避风控，又绝对不超出宿舍打卡地理围栏；
 - 🔄 **动态 TaskID 自愈提取**：自动请求任务分页接口提取当期最新有效考勤任务，跨学期、新任务更迭无需人工介入修改任务编号；
 - 🔔 **多通道智能分级告警**：
   - **日常结果**：通过 [Server 酱·Turbo 版](https://sct.ftqq.com/) 推送每日详细微信打卡报表；
@@ -80,7 +77,7 @@ ahut-auto-checkin/
 │   └── local-setup.md                 # 本地油猴与任务计划程序部署详细指引
 ├── README.md                          # 项目说明文档
 ├── LICENSE                            # MIT 开源许可证
-└── .gitignore                         # 严格阻断真实凭据与运行日志提交
+└── .gitignore
 ```
 
 ---
@@ -117,12 +114,14 @@ ahut-auto-checkin/
 
 ## 📝 致谢与开源参考
 
-本项目云端核心签到协议逆向与基础架构受启发于开源项目 [dawn200712/AHUT](https://github.com/dawn200712/AHUT)，在此对其开创性工作表示诚挚感谢。
+本项目云端签到脚本来源于：
+- [dawn200712/AHUT](https://github.com/dawn200712/AHUT)
+- [UnthinkingBrain/-_ahut_wqqd](https://github.com/UnthinkingBrain/-_ahut_wqqd)
 
-在此基础上，本项目针对实际生产化无人值守运行进行了二次深度重构：
+在此基础上，本项目：
 1. 取消对已取消免费额度的阿里云 FC 的依赖，完全迁移并适配 GitHub Actions 免费算力体系；
 2. 修复原上游坐标粗粒度偏移容易导致超出考勤围栏的缺陷，优化为 $\pm 0.0002^\circ$ 拟真抖动算法；
-3. 引入 ntfy 官方 JSON 强穿透双通道告警体系，解决日常推送刷屏与夜间漏签风险的矛盾；
+3. 引入 ntfy 官方 JSON 强穿透双通道告警体系；
 4. 提供本地桌面油猴自动化独立方案，满足不同使用习惯与环境下的打卡需求。
 
 ---
