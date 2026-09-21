@@ -81,6 +81,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class User:
     student_Id: int
+    alias: str = "用户"
     username: str = ""
     password: str = "Ahgydx@920"
     latitude: float = 0.0
@@ -211,7 +212,7 @@ def generate_data(user: User) -> dict:
 async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=None) -> dict:
     # 步骤 0：获取登录 Token
     if step == 0:
-        logger.info(f"[{user.student_Id}] 1/6 获取登录凭证...")
+        logger.info(f"[{user.alias}] 1/6 获取登录凭证...")
         async with user.session.post(
             url=WEB_DICT["token_api"],
             params=generate_params(user),
@@ -221,18 +222,18 @@ async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=
         if "refresh_token" in token_result:
             user.token = token_result["refresh_token"]
             user.username = token_result.get("userName", "")
-            logger.info(f"[{user.student_Id}] 凭证获取成功：{user.username}")
+            logger.info(f"[{user.alias}] 凭证获取成功")
             return {"success": True, "msg": "", "step": step + 1}
         else:
             error_desc = token_result.get("error_description", "未知错误")
             if "Bad credentials" in error_desc or "用户名或密码错误" in error_desc:
                 error_desc = "学号或密码错误"
-            logger.error(f"[{user.student_Id}] 凭证获取失败：{error_desc}")
+            logger.error(f"[{user.alias}] 凭证获取失败：{error_desc}")
             return {"success": False, "msg": error_desc, "step": -1}
 
     # 步骤 1：动态获取今日当期签到任务 ID
     if step == 1:
-        logger.info(f"[{user.student_Id}] 2/6 动态获取签到任务ID...")
+        logger.info(f"[{user.alias}] 2/6 动态获取签到任务ID...")
         async with user.session.get(
             url=WEB_DICT["task_id_api"],
             headers=generate_header(user, WEB_DICT["task_id_api"]),
@@ -242,53 +243,53 @@ async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=
             records = task_result.get("data", {}).get("records", [{}])
             if records and records[0].get("taskId"):
                 user.taskId = records[0].get("taskId")
-                logger.info(f"[{user.student_Id}] 动态任务ID获取成功：{user.taskId}")
+                logger.info(f"[{user.alias}] 动态任务ID获取成功")
                 return {"success": True, "msg": "", "step": step + 1}
             else:
-                logger.error(f"[{user.student_Id}] 未检索到今日有效晚寝签到任务")
+                logger.error(f"[{user.alias}] 未检索到今日有效晚寝签到任务")
                 return {"success": False, "msg": "未找到签到任务", "step": step}
         else:
             msg = task_result.get("msg", "")
             if any(k in msg for k in ["请求未授权", "缺失身份信息", "鉴权失败"]):
-                logger.warning(f"[{user.student_Id}] 凭证已失效，重新获取...")
+                logger.warning(f"[{user.alias}] 凭证已失效，重新获取...")
                 user.token = ""
                 return {"success": False, "msg": "token失效", "step": 0}
-            logger.error(f"[{user.student_Id}] 获取任务ID出错：{msg}")
+            logger.error(f"[{user.alias}] 获取任务ID出错：{msg}")
             return {"success": False, "msg": msg, "step": step}
 
     # 步骤 2：模拟微信环境验证
     if step == 2:
-        logger.info(f"[{user.student_Id}] 3/6 验证微信环境...")
+        logger.info(f"[{user.alias}] 3/6 验证微信环境...")
         url = WEB_DICT["auth_check_api"].format(TASK_ID=user.taskId, STUDENT_ID=user.student_Id)
         async with user.session.get(url=url, headers=generate_header(user, url)) as resp:
             auth_result = await resp.json()
         if auth_result.get("code") == 200:
-            logger.info(f"[{user.student_Id}] 微信环境验证通过")
+            logger.info(f"[{user.alias}] 微信环境验证通过")
             return {"success": True, "msg": "", "step": step + 1}
         else:
             msg = auth_result.get("msg", "")
             if any(k in msg for k in ["请求未授权", "缺失身份信息", "鉴权失败"]):
                 user.token = ""
                 return {"success": False, "msg": "token失效", "step": 0}
-            logger.error(f"[{user.student_Id}] 微信环境验证出错：{msg}")
+            logger.error(f"[{user.alias}] 微信环境验证出错：{msg}")
             return {"success": False, "msg": msg, "step": step}
 
     # 步骤 3：开启签到时间窗口
     if step == 3:
-        logger.info(f"[{user.student_Id}] 4/6 开启签到时间窗口...")
+        logger.info(f"[{user.alias}] 4/6 开启签到时间窗口...")
         async with user.session.post(
             url=WEB_DICT["apiLog_api"],
             headers=generate_header(user, WEB_DICT["apiLog_api"]),
         ) as resp:
             if resp.status == 200:
-                logger.info(f"[{user.student_Id}] 时间窗口已开启")
+                logger.info(f"[{user.alias}] 时间窗口已开启")
                 return {"success": True, "msg": "", "step": step + 1}
-            logger.error(f"[{user.student_Id}] 开启时间窗口失败")
+            logger.error(f"[{user.alias}] 开启时间窗口失败")
             return {"success": False, "msg": "开启签到时间窗口失败", "step": step}
 
     # 步骤 4：获取基准宿舍定位
     if step == 4:
-        logger.info(f"[{user.student_Id}] 5/6 获取基准签到位置...")
+        logger.info(f"[{user.alias}] 5/6 获取基准签到位置...")
         url = WEB_DICT["get_location_api"].format(
             TASK_ID=user.taskId,
             date_str=datetime.now().strftime("%Y-%m-%d"),
@@ -300,7 +301,7 @@ async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=
             user.latitude = float(dorm.get("locationLat", 0))
             user.longitude = float(dorm.get("locationLng", 0))
             user.room_id = dorm.get("roomId", "")
-            logger.info(f"[{user.student_Id}] 位置获取成功（宿舍：{user.room_id or '未知'}）")
+            logger.info(f"[{user.alias}] 位置获取成功（基准定位已就绪）")
             return {"success": True, "msg": "", "step": step + 1}
         else:
             msg = location_result.get("msg", "")
@@ -312,7 +313,7 @@ async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=
     # 步骤 5：提交签到数据
     if step == 5:
         async with sign_lock:
-            logger.info(f"[{user.student_Id}] 6/6 提交签到（拟真 GPS 抖动中...）")
+            logger.info(f"[{user.alias}] 6/6 提交签到（拟真 GPS 抖动中...）")
             sleep_time = round(random.uniform(3, 8))
             await asyncio.sleep(sleep_time)
             async with user.session.post(
@@ -322,7 +323,7 @@ async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=
             ) as resp:
                 sign_in_result = await resp.json()
             if sign_in_result.get("code") == 200 or "您今天已完成签到" in sign_in_result.get("msg", ""):
-                logger.info(f"[{user.student_Id}] 签到成功！")
+                logger.info(f"[{user.alias}] 签到成功！")
                 return {"success": True, "msg": "", "step": step + 1}
             else:
                 msg = sign_in_result.get("msg", "")
@@ -330,9 +331,9 @@ async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=
                     user.token = ""
                     return {"success": False, "msg": "token失效", "step": 0}
                 if "未到签到时间" in msg:
-                    logger.error(f"[{user.student_Id}] 未到签到开放时间")
+                    logger.error(f"[{user.alias}] 未到签到开放时间")
                     return {"success": False, "msg": msg, "step": -1}
-                logger.error(f"[{user.student_Id}] 签到提交出错：{msg}")
+                logger.error(f"[{user.alias}] 签到提交出错：{msg}")
                 return {"success": False, "msg": msg, "step": step}
 
     return {"success": False, "msg": "", "step": -1}
@@ -374,10 +375,11 @@ def load_users_from_env():
     for i, sid in enumerate(student_ids):
         pwd = passwords[i] if i < len(passwords) else "Ahgydx@920"
         if not sid.isdigit():
-            logger.warning(f"学号格式不正确，跳过：{sid}")
+            logger.warning(f"用户配置格式不合规（序号 {i + 1}），跳过")
             continue
-        users.append(User(student_Id=int(sid), password=pwd))
-        logger.info(f"已加载用户：{sid}")
+        alias = f"用户 {i + 1}"
+        users.append(User(student_Id=int(sid), alias=alias, password=pwd))
+        logger.info(f"已加载用户配置：{alias}")
 
     return users
 
@@ -425,7 +427,7 @@ async def main():
     for user, result in zip(users, results):
         status = "成功" if result["success"] else "失败"
         errors = "、".join(result["data"]) if result["data"] else "无"
-        logger.info(f"  {user.student_Id} ({user.username or '未知'}): {status} - {errors}")
+        logger.info(f"  {user.alias}: {status} - {errors}")
     logger.info("=" * 50)
 
     # ---------- 结果通知分发 ----------
