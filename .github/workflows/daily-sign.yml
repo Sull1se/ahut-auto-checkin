@@ -1,0 +1,38 @@
+name: AHUT 晚寝自动签到 (每日定时 & 容灾双轨)
+
+on:
+  schedule:
+    # 国际标准时间 13:31，换算为北京时间 (UTC+8) 即每晚 21:31:00 精确触发
+    # 比本地桌面 21:35 兜底提前 4 分钟执行首发签到
+    - cron: '31 13 * * *'
+  workflow_dispatch: # 支持在 GitHub 网页控制台手动一键点击运行测试
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 检出仓库代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: 安装依赖包
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 执行自动签到
+        env:
+          STUDENT_IDS: ${{ secrets.STUDENT_IDS }}
+          PASSWORDS: ${{ secrets.PASSWORDS }}
+          SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DEBUG_MODE: 'false'
+        run: |
+          python main.py

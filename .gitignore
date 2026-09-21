@@ -1,0 +1,22 @@
+# 真实的本地配置文件与启动日志（防泄露红线）
+wise-checkin.config.json
+*.config.json
+!wise-checkin.config.template.json
+wise-startup.log
+*.log
+*.bak
+
+# Python 运行时与虚拟环境
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+
+# 临时与系统垃圾文件
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+scratch/

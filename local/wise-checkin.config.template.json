@@ -1,0 +1,10 @@
+{
+    "browserPath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "userDataDir": "",
+    "profileName": "Default",
+    "loginUrl": "https://xskq.ahut.edu.cn/login",
+    "targetUrl": "https://xskq.ahut.edu.cn/wise/pages/ssgl/dormsign?autoSign=1&scanSign=0",
+    "defaultTaskId": "ebf794a5c9f6bff2575114ada2339658",
+    "timeoutSeconds": 60,
+    "autoLoginTimeoutSeconds": 30
+}
