@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     自动检测当前发布版路径并一键注册 Windows 任务计划程序
 .DESCRIPTION
@@ -6,12 +6,12 @@
 .PARAMETER TaskName
     任务名称，默认为 AHUT-WiseCheckIn-Auto。
 .PARAMETER DailyTime
-    每日触发时间，默认为 21:35:00。
+    每日触发时间，默认为 22:00:00。
 #>
 [CmdletBinding()]
 param (
     [string]$TaskName = "AHUT-WiseCheckIn-Auto",
-    [string]$DailyTime = "21:35:00"
+    [string]$DailyTime = "22:00:00"
 )
 
 $ErrorActionPreference = 'Stop'

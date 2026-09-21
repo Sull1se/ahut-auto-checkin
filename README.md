@@ -107,7 +107,7 @@ ahut-auto-checkin/
 1. 打开 Edge 或 Chrome 浏览器，安装 [Tampermonkey (油猴)](https://www.tampermonkey.net/)；
 2. 复制 [`local/wise-auto-adapter.user.js`](local/wise-auto-adapter.user.js) 源码导入油猴；
 3. 在 `local/` 目录下双击运行 `Set-EdgeConfig.cmd` 自动完成浏览器环境配置；
-4. （可选定时调度）右键管理员运行 `Install-WiseTask.cmd`，自动注册 Windows 任务计划程序（预设触发时间为 21:35:00，可自定义修改，详见本地指南）。
+4. （可选定时调度）右键管理员运行 `Install-WiseTask.cmd`，自动注册 Windows 任务计划程序（预设触发时间为 22:00:00，与云端 Actions 21:31 首发错峰 29 分钟，详见本地指南）。
 > 详细配置与故障排查请参考 [docs/local-setup.md](docs/local-setup.md)。
 
 ---
