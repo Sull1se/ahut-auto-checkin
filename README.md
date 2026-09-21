@@ -1,4 +1,4 @@
-# AHUT 安徽工业大学晚寝自动签到助手 (AHUT Auto Check-In)
+# AHUT 安徽工业大学晚寝自动签到 (AHUT Auto Check-In)
 
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -121,7 +121,7 @@ ahut-auto-checkin/
 在此基础上，本项目：
 1. 取消对已取消免费额度的阿里云 FC 的依赖，完全迁移并适配 GitHub Actions 免费算力体系；
 2. 修复原上游坐标粗粒度偏移容易导致超出考勤围栏的缺陷，优化为 $\pm 0.0002^\circ$ 拟真抖动算法；
-3. 引入 ntfy 官方 JSON 强穿透双通道告警体系；
+3. 引入 ntfy 官方 JSON 强穿透双通道告警体系，删除了邮件提醒接口；
 4. 提供本地桌面油猴自动化独立方案，满足不同使用习惯与环境下的打卡需求。
 
 ---
