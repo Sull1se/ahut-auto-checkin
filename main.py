@@ -468,7 +468,7 @@ async def main():
             ntfy_body = (
                 f"AHUT 晚寝签到未全部成功（成功 {success_count}/{len(users)}）\n\n"
                 f"失败人员列表：\n" + "\n".join(failed_items) + "\n\n"
-                f"请立即核实或确认 21:35 本地桌面兜底是否正常唤起！"
+                f"请立即核实！"
             )
             notifier._send_ntfy(
                 title=ntfy_title,
