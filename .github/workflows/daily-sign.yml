@@ -1,10 +1,11 @@
 name: Daily Check-In
 
 on:
-  schedule:
-    # 国际标准时间 13:31，换算为北京时间 (UTC+8) 即每晚 21:31:00 自动触发
-    - cron: '31 13 * * *'
-  workflow_dispatch: # 支持在 GitHub 网页控制台手动一键点击运行测试
+  # schedule:
+  #   # 【定时运行模板】如需在个人 Fork 仓库开启定时自动签到，可解除下方注释
+  #   # 国际标准时间 13:31，换算为北京时间 (UTC+8) 即每晚 21:31:00 自动触发
+  #   - cron: '31 13 * * *'
+  workflow_dispatch: # 支持在 GitHub 网页控制台手动一键点击运行测试（供调试与手动验证）
 
 jobs:
   checkin:
