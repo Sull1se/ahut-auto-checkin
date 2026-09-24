@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-AHUT 晚寝自动签到 - GitHub Actions / 云端无头运行版
+AHUT 晚寝自动签到 - Python 脚本
 
 环境变量：
   STUDENT_IDS         - 学号列表，多个用英文分号分隔（必填）
   PASSWORDS           - 密码列表，多个用英文分号分隔（可选，默认 Ahgydx@920）
-  DEBUG_MODE          - 调试模式：忽略签到时间限制（可选，true/false，默认 false）
 
 【推送配置】（可选）
   SERVERCHAN_SENDKEY  - Server 酱 SendKey（微信公众号日常签到结果推送）
   NTFY_TOPIC          - ntfy 专属频道 Topic（仅在签到失败时发送高优先级强穿透告警）
-
-工作流示例（GitHub Actions）：
-  通过 GitHub 仓库 Settings -> Secrets and variables -> Actions 配置以上变量。
 """
 import asyncio
 import base64
@@ -209,7 +205,7 @@ def generate_data(user: User) -> dict:
 # 签到状态机逐步执行
 # ============================================================
 
-async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=None) -> dict:
+async def sign_in_by_step(user: User, step: int, sign_lock=None) -> dict:
     # 步骤 0：获取登录 Token
     if step == 0:
         logger.info(f"[{user.alias}] 1/6 获取登录凭证...")
@@ -339,11 +335,11 @@ async def sign_in_by_step(user: User, step: int, debug: bool = False, sign_lock=
     return {"success": False, "msg": "", "step": -1}
 
 
-async def sign_in(user: User, debug: bool = False, sign_lock=None) -> dict:
+async def sign_in(user: User, sign_lock=None) -> dict:
     step, retries, token_retries = 0, 0, 0
     error_history = set()
     while retries < MAX_RETRIES and 0 <= step < 6:
-        result = await sign_in_by_step(user, step, debug, sign_lock)
+        result = await sign_in_by_step(user, step, sign_lock=sign_lock)
         step = result["step"]
         if not result["success"]:
             if result["msg"]:
@@ -365,11 +361,12 @@ def load_users_from_env():
     passwords_str = os.environ.get("PASSWORDS", "").strip()
 
     if not student_ids_str:
-        logger.error("环境变量 STUDENT_IDS 未设置！请在 GitHub 仓库 Secrets 中配置。")
+        logger.error("环境变量 STUDENT_IDS 未设置！请配置环境变量 STUDENT_IDS。")
         return []
 
-    student_ids = [s.strip() for s in student_ids_str.split(";") if s.strip()]
-    passwords = [p.strip() for p in passwords_str.split(";") if passwords_str]
+    import re
+    student_ids = [s.strip() for s in re.split(r"[;,\n]", student_ids_str) if s.strip()]
+    passwords = [p.strip() for p in re.split(r"[;,\n]", passwords_str) if p.strip()]
 
     users = []
     for i, sid in enumerate(student_ids):
@@ -390,25 +387,20 @@ def load_users_from_env():
 
 async def main():
     logger.info("=" * 50)
-    logger.info("AHUT 晚寝自动签到 - GitHub Actions 版启动")
+    logger.info("AHUT 晚寝自动签到 - Python 脚本启动")
     logger.info(f"当前时间：{get_time()['full']}")
     logger.info("=" * 50)
 
     users = load_users_from_env()
     if not users:
-        logger.error("未找到有效用户配置，程序退出。")
-        sys.exit(1)
-
-    debug_mode = (os.environ.get("DEBUG_MODE") or "false").lower() == "true"
-    if debug_mode:
-        logger.warning("调试模式开启：忽略签到时间限制")
+        raise RuntimeError("未找到有效用户配置，请检查环境变量 STUDENT_IDS 配置是否正确。")
 
     sign_lock = asyncio.Lock()
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
     async def limited_sign_in(user):
         async with semaphore:
-            return await sign_in(user, debug=debug_mode, sign_lock=sign_lock)
+            return await sign_in(user, sign_lock=sign_lock)
 
     logger.info(f"开始为 {len(users)} 人执行晚寝签到...")
     start_time = time.time()
@@ -479,11 +471,11 @@ async def main():
         else:
             logger.info("签到全部成功，按策略跳过 ntfy 告警推送（仅失败触发）")
 
-    # 若未全部成功，以退出码 1 退出，使 GitHub Actions 标记为失败并呈报红标
+    # 若未全部成功，抛出异常让平台感知并记录调用异常
     if not all_success:
         failed_count = len(users) - success_count
         logger.error(f"自动化签到未完全成功：共 {len(users)} 人，失败 {failed_count} 人")
-        sys.exit(1)
+        raise RuntimeError(f"自动化签到未完全成功：共 {len(users)} 人，失败 {failed_count} 人")
 
 
 if __name__ == "__main__":

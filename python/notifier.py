@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-AHUT 晚寝签到结果通知模块
+AHUT 晚寝签到结果通知模块 (Python 脚本)
 支持通道：
   1. Server酱微信推送（日常详细报表）
   2. ntfy 移动端强穿透告警（仅在签到失败时触发高优先级免打扰穿透提醒）
@@ -83,7 +83,7 @@ class Notifier:
             data=data,
             headers={
                 "Content-Type": "application/json; charset=utf-8",
-                "User-Agent": "AHUT-AutoCheckIn-Actions/2.0",
+                "User-Agent": "AHUT-AutoCheckIn-Python/2.0",
             },
             method="POST",
         )

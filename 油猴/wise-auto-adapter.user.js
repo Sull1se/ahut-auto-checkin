@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AHUT 考勤系统移动端会话自动适配与一键签到助手
 // @namespace    https://xskq.ahut.edu.cn/
-// @version      1.2.0
+// @version      1.3.0
 // @description  PC端登录自动适配移动端5键存储，支持一键自动化入口（冷启动登录、会话同步、定位状态智能监听、签到状态检测与安全防重提交）
 // @match        https://xskq.ahut.edu.cn/*
 // @grant        none
@@ -17,12 +17,11 @@
   }
 
   // -------------------------------------------------------------
-  // 0. 全局常量与内存状态 (v1.2.0)
+  // 0. 全局常量与内存状态 (v1.3.0)
   // -------------------------------------------------------------
-  const SCRIPT_VERSION = '1.2.0';
-  const DEFAULT_TASK_ID = 'ebf794a5c9f6bff2575114ada2339658';
-  const TARGET_URL = "https://xskq.ahut.edu.cn/wise/pages/ssgl/dormsign?taskId=" + DEFAULT_TASK_ID + "&autoSign=1&scanSign=0";
-  const LOGIN_URL = "https://xskq.ahut.edu.cn/login";
+  const SCRIPT_VERSION = '1.3.0';
+  const LOGIN_URL = "https://xskq.ahut.edu.cn/index/";
+  const WQQD_URL = "https://xskq.ahut.edu.cn/wise/pages/ssgl/wqqd";
   const STATE_KEY = 'wise_automation_state';
   const DIAG_KEY = 'wise_automation_diagnostics';
   const MAX_DIAG_EVENTS = 100;
@@ -34,13 +33,6 @@
     studentId: '', // 学号/账号，例如 '2100000000'
     password: ''   // 登录密码
   };
-
-  function buildTargetUrl(taskId) {
-    const id = (taskId && String(taskId).trim()) ? String(taskId).trim() : DEFAULT_TASK_ID;
-    return `https://xskq.ahut.edu.cn/wise/pages/ssgl/dormsign?taskId=${encodeURIComponent(id)}&autoSign=1&scanSign=0`;
-  }
-
-  let currentTargetUrl = TARGET_URL;
 
   function getEffectiveCredentials() {
     try {
@@ -688,7 +680,7 @@
 
     btn.innerHTML = `
       <span style="font-size: 16px;">📍</span>
-      <span>直达宿舍签到 (${userName}) · 点击进入</span>
+      <span>直达晚寝签到列表 (${userName}) · 点击进入</span>
     `;
 
     btn.onmouseover = () => {
@@ -701,7 +693,7 @@
     };
 
     btn.onclick = () => {
-      location.href = currentTargetUrl || TARGET_URL;
+      location.href = WQQD_URL;
     };
 
     document.body.appendChild(btn);
@@ -826,83 +818,6 @@
     return result;
   }
 
-  async function fetchActiveDormSignTaskId(token, opContext, timeoutMs = 8000) {
-    if (!token) return { ok: false, taskId: null, reason: 'no_token' };
-
-    const startTime = Date.now();
-    let controller = null;
-    let timeoutTimer = null;
-
-    try {
-      if (typeof AbortController !== 'undefined') {
-        controller = new AbortController();
-        registerAbortController(controller);
-        timeoutTimer = setTimeout(() => {
-          try { controller.abort(); } catch (e) {}
-        }, timeoutMs);
-      }
-
-      const timestamp = Date.now();
-      const urlPath = "/api/flySource-yxgl/dormSignTask/getStudentTaskPage?userDataType=student&current=1&size=15";
-      const signPrefix = urlPath + "?sign=";
-      const innerHash = safeMd5(timestamp + token);
-      const outerHash = safeMd5(signPrefix + innerHash);
-      const flySourceSign = outerHash + "1." + encodeBase64(timestamp.toString());
-
-      const clientId = "flySource";
-      const clientSecret = "FlySource_SDEKOFSIDF82329F8sd8723dS87DAS";
-      const authorization = "Basic " + encodeBase64(`${clientId}:${clientSecret}`);
-
-      const headers = {
-        "Accept": "application/json, text/plain, */*",
-        "FlySource-Auth": `bearer ${token}`,
-        "Authorization": authorization,
-        "FlySource-sign": flySourceSign
-      };
-
-      const response = await fetch(`https://xskq.ahut.edu.cn${urlPath}`, {
-        method: "GET",
-        headers,
-        credentials: "include",
-        signal: controller ? controller.signal : undefined
-      });
-
-      if (!response.ok) {
-        return { ok: false, taskId: null, reason: 'http_error', httpStatus: response.status };
-      }
-
-      let resData = null;
-      try {
-        resData = await response.json();
-      } catch (e) {
-        return { ok: false, taskId: null, reason: 'parse_error' };
-      }
-
-      if (resData && resData.code === 200 && resData.data) {
-        const records = resData.data.records || [];
-        if (records.length > 0 && records[0].taskId) {
-          return {
-            ok: true,
-            taskId: String(records[0].taskId),
-            taskName: records[0].taskName || records[0].title || '',
-            record: records[0]
-          };
-        }
-        return { ok: false, taskId: null, reason: 'no_records' };
-      }
-
-      return { ok: false, taskId: null, reason: 'business_error', businessCode: resData ? resData.code : 'UNKNOWN' };
-    } catch (err) {
-      if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR')) {
-        return { ok: false, taskId: null, reason: 'timeout' };
-      }
-      return { ok: false, taskId: null, reason: 'network_error' };
-    } finally {
-      if (timeoutTimer) clearTimeout(timeoutTimer);
-      if (controller) unregisterAbortController(controller);
-    }
-  }
-
   function getLocalPcToken() {
     try {
       const rawAccess = localStorage.getItem("access-token");
@@ -919,6 +834,7 @@
       if (typeof location === 'undefined') return false;
       return location.pathname.includes('/login') ||
              location.pathname === '/' ||
+             location.pathname.startsWith('/index') ||
              (typeof document !== 'undefined' && !!document.querySelector('input[type="password"]'));
     } catch(e) {
       return false;
@@ -1188,50 +1104,24 @@
 
     const userName = userInfoData.userName || userInfoData.accountNo || '用户';
 
-    // 动态拉取当前有效 taskId（若失败则自动平滑回退至基准任务）
-    let activeTaskId = DEFAULT_TASK_ID;
-    let taskName = '';
-    try {
-      const taskRes = await fetchActiveDormSignTaskId(token, opContext);
-      if (taskRes && taskRes.ok && taskRes.taskId) {
-        activeTaskId = taskRes.taskId;
-        taskName = taskRes.taskName || '';
-        addDiagnosticEvent('DYNAMIC_TASK_ID_OK', { taskId: activeTaskId, taskName: taskName });
-      } else {
-        addDiagnosticEvent('DYNAMIC_TASK_ID_FALLBACK', {
-          reason: taskRes ? taskRes.reason : 'unknown',
-          fallbackTaskId: DEFAULT_TASK_ID
-        });
-      }
-    } catch (e) {
-      addDiagnosticEvent('DYNAMIC_TASK_ID_FALLBACK', { reason: 'exception', fallbackTaskId: DEFAULT_TASK_ID });
-    }
-
     if (!isOpValid(opContext)) {
       currentStageInFlight = null;
       return;
     }
 
-    const finalTargetUrl = buildTargetUrl(activeTaskId);
-    currentTargetUrl = finalTargetUrl;
-
-    const navMsg = taskName
-      ? `身份已验证 (${userName})，已匹配最新考勤任务【${taskName}】，正在直达...`
-      : `身份已验证 (${userName})，已使用基准考勤任务，正在直达...`;
-
     commitState({
       stage: 'NAVIGATING',
-      stageDesc: '会话就绪，正在直达',
-      message: navMsg,
-      targetTaskId: activeTaskId
+      stageDesc: '会话就绪，正在打开晚寝列表',
+      message: `身份已验证 (${userName})，正在打开晚寝签到列表页...`,
+      targetUrl: WQQD_URL
     }, opContext);
 
-    addDiagnosticEvent('NAVIGATING', { target: 'dormsign', taskId: activeTaskId });
+    addDiagnosticEvent('NAVIGATING', { target: 'wqqd', url: WQQD_URL });
     currentStageInFlight = null;
 
     safeSetTimeout(() => {
       if (isOpValid(opContext)) {
-        location.href = finalTargetUrl;
+        location.href = WQQD_URL;
       } else {
         addDiagnosticEvent('STALE_CALLBACK_DISCARDED', {
           reason: 'nav_delayed_callback_invalid',
@@ -1242,7 +1132,167 @@
   }
 
   // -------------------------------------------------------------
-  // 10. 目标签到页处理与定位状态智能监听
+  // 10. 晚寝签到列表页处理（等待任务卡片加载、识别并单次点击进入签到页）
+  // -------------------------------------------------------------
+  function handleWqqdListPage(state) {
+    if (!state || isTerminalStatus(state.status)) return;
+    if (currentStageInFlight === 'LIST_WAIT' || currentStageInFlight === 'CLICKING_TASK') {
+      addDiagnosticEvent('DISPATCH_IGNORED', { reason: 'list_wait_already_in_flight' });
+      return;
+    }
+
+    currentStageInFlight = 'LIST_WAIT';
+    const opContext = createOpContext('LIST_WAIT');
+
+    renderOrUpdateStatusPanel(state);
+    commitState({
+      stage: 'LIST_WAIT',
+      stageDesc: '等待签到任务加载',
+      message: '已进入晚寝签到列表，正在检索有效任务...'
+    }, opContext);
+
+    addDiagnosticEvent('LIST_WAIT_START', { opId: opContext.opId });
+
+    let checkAttempt = 0;
+    const listTimer = safeSetInterval(() => {
+      checkAttempt++;
+      if (!isOpValid(opContext)) {
+        safeClearInterval(listTimer);
+        currentStageInFlight = null;
+        return;
+      }
+
+      const items = Array.from(document.querySelectorAll('.uni-list-item'));
+      if (items.length > 0) {
+        let matchedItem = null;
+        let matchedTitle = '';
+
+        if (items.length === 1) {
+          matchedItem = items[0];
+          const titleEl = matchedItem.querySelector('.wqqd-item-title') || matchedItem;
+          matchedTitle = (titleEl.innerText || '').trim();
+        } else {
+          // 多个任务时优先过滤晚寝任务
+          const candidateItems = items.filter(it => {
+            const txt = (it.innerText || '').trim();
+            return txt.includes('晚归寝') || txt.includes('晚寝');
+          });
+
+          if (candidateItems.length === 1) {
+            matchedItem = candidateItems[0];
+            const titleEl = matchedItem.querySelector('.wqqd-item-title') || matchedItem;
+            matchedTitle = (titleEl.innerText || '').trim();
+          } else if (candidateItems.length > 1) {
+            // 比对日期范围
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+            const activeByDate = candidateItems.filter(it => {
+              const dateEl = it.querySelector('.wqqd-item-date');
+              const dateTxt = dateEl ? dateEl.innerText : it.innerText;
+              const match = (dateTxt || '').match(/(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})/);
+              if (match) {
+                return todayStr >= match[1] && todayStr <= match[2];
+              }
+              return false;
+            });
+
+            if (activeByDate.length === 1) {
+              matchedItem = activeByDate[0];
+              const titleEl = matchedItem.querySelector('.wqqd-item-title') || matchedItem;
+              matchedTitle = (titleEl.innerText || '').trim();
+            } else {
+              safeClearInterval(listTimer);
+              currentStageInFlight = null;
+              commitState({
+                status: 'failed',
+                errorCode: 'AMBIGUOUS_TASK_LIST',
+                stageDesc: '任务列表存在歧义',
+                message: `列表中检测到 ${candidateItems.length} 个晚寝任务候选，无法唯一匹配目标任务。`
+              }, opContext);
+              addDiagnosticEvent('TERMINAL', { reason: 'ambiguous_task_list', count: candidateItems.length });
+              return;
+            }
+          } else {
+            safeClearInterval(listTimer);
+            currentStageInFlight = null;
+            commitState({
+              status: 'failed',
+              errorCode: 'NO_MATCHING_TASK',
+              stageDesc: '无匹配签到任务',
+              message: '列表中未发现包含“晚寝”或“晚归寝”的有效签到任务。'
+            }, opContext);
+            addDiagnosticEvent('TERMINAL', { reason: 'no_matching_task' });
+            return;
+          }
+        }
+
+        if (matchedItem) {
+          safeClearInterval(listTimer);
+          currentStageInFlight = 'CLICKING_TASK';
+
+          commitState({
+            stage: 'CLICKING_TASK',
+            stageDesc: '点击进入签到页',
+            message: `已选中任务【${matchedTitle}】，正在点击进入签到详情页...`
+          }, opContext);
+
+          addDiagnosticEvent('LIST_ITEM_CLICK', {
+            title: matchedTitle,
+            opId: opContext.opId
+          });
+
+          safeSetTimeout(() => {
+            if (!isOpValid(opContext)) {
+              currentStageInFlight = null;
+              return;
+            }
+            currentStageInFlight = null;
+            try {
+              if (typeof matchedItem.click === 'function') {
+                matchedItem.click();
+              } else {
+                matchedItem.dispatchEvent(new Event('click', { bubbles: true }));
+              }
+            } catch (e) {
+              matchedItem.dispatchEvent(new Event('click', { bubbles: true }));
+            }
+          }, 300);
+          return;
+        }
+      }
+
+      // 检查空列表提示
+      const emptyEl = document.querySelector('.uni-load-more') || document.querySelector('.wise-empty');
+      if (emptyEl && (emptyEl.innerText || '').includes('暂无数据') && items.length === 0) {
+        safeClearInterval(listTimer);
+        currentStageInFlight = null;
+        commitState({
+          status: 'failed',
+          errorCode: 'EMPTY_TASK_LIST',
+          stageDesc: '签到列表为空',
+          message: '当前晚寝签到列表中没有可用任务（显示暂无数据）。'
+        }, opContext);
+        addDiagnosticEvent('TERMINAL', { reason: 'empty_task_list' });
+        return;
+      }
+
+      // 超时判定 (20s)
+      if (checkAttempt > 50) {
+        safeClearInterval(listTimer);
+        currentStageInFlight = null;
+        commitState({
+          status: 'failed',
+          errorCode: 'LIST_LOAD_TIMEOUT',
+          stageDesc: '列表加载超时',
+          message: '20 秒内未能加载晚寝签到列表中的任务条目。'
+        }, opContext);
+        addDiagnosticEvent('TERMINAL', { reason: 'list_load_timeout', errorCode: 'LIST_LOAD_TIMEOUT' });
+      }
+    }, 400);
+  }
+
+  // -------------------------------------------------------------
+  // 11. 目标签到页处理与定位状态智能监听
   // -------------------------------------------------------------
   function handleTargetDormSignPage(state) {
     if (!state || isTerminalStatus(state.status)) return;
@@ -1710,12 +1760,18 @@
 
     const pathname = getSanitizedPathname();
     const isTargetPage = pathname.includes('/wise/pages/ssgl/dormsign');
+    const isWqqdPage = pathname.includes('/wise/pages/ssgl/wqqd');
     const isWisePrefix = pathname.startsWith('/wise/');
 
     addDiagnosticEvent('DISPATCH_STAGE', { pathname, stage: state.stage });
 
     if (isTargetPage) {
       handleTargetDormSignPage(state);
+      return;
+    }
+
+    if (isWqqdPage) {
+      handleWqqdListPage(state);
       return;
     }
 
@@ -1979,10 +2035,9 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       SCRIPT_VERSION,
-      DEFAULT_TASK_ID,
-      TARGET_URL,
-      buildTargetUrl,
-      fetchActiveDormSignTaskId,
+      WQQD_URL,
+      LOGIN_URL,
+      handleWqqdListPage,
       EMBEDDED_CREDENTIALS,
       getEffectiveCredentials,
       simulateNativeInput,
@@ -2017,7 +2072,6 @@
         currentStageInFlight = null;
         EMBEDDED_CREDENTIALS.studentId = '';
         EMBEDDED_CREDENTIALS.password = '';
-        currentTargetUrl = TARGET_URL;
         cleanupAllAsync();
       }
     };
